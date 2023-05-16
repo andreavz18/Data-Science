@@ -1,0 +1,672 @@
+---
+title: "Homework 1"
+author: "Andrea Villarreal"
+date: '2023-05-14'
+output:
+  word_document: default
+  html_document:
+    df_print: paged
+editor: visual
+format:
+  docx: default
+  html:
+    toc: yes
+    toc_float: yes
+    code-fold: yes
+---
+
+```{r}
+#| label: Loading libraries 
+
+library(tidyverse)
+library(nycflights13)
+library(skimr)
+library(ggpubr)
+
+```
+
+# Data Manipulation
+
+## Problem 1: Flight Data Exploration
+
+```     
+1.   Had an arrival delay of two or more hours (\> 120 minutes)
+2.   Flew to Houston (IAH or HOU)
+3.   Were operated by United (`UA`), American (`AA`), or Delta (`DL`)
+4.   Departed in summer (July, August, and September)
+5.   Arrived more than two hours late, but didn't leave late
+6.   Were delayed by at least an hour, but made up over 30 minutes in flight
+
+Using the 'flights' dataset from the US Bureau of Transportation Statistics within the nycflights package
+
+The dataset contains information on flights leaving an NYC airport to a domestic destination in 2013. 
+```
+
+```{r}
+#| label: Problem 1
+
+Flights <- flights
+glimpse(Flights)
+NoFlights <- nrow(Flights)
+# There are 336,776 flights in total for the year 2013
+
+# 1. Arrival delay of two or more hours (> 120 minutes)
+
+# Creating a dataframe including only flights delayed by 120 minutes+ on arrival
+DelayedFlights <- flights %>%
+  filter(arr_delay >= 120)
+
+#Proportion of flights delayed by 2+ hours
+nrow(DelayedFlights) / NoFlights
+# 0.03028, c. 3% of flights were delayed 
+
+# Output: 
+print(c(paste0('No. of flights delayed by 120+ minutes: ', nrow(DelayedFlights)),
+        paste0('Proportion of total flights: ', round(nrow(DelayedFlights) / NoFlights, 3))))
+
+
+# 2. Flew to Houston (IAH or HOU)
+
+# Filtering for flights whose destination is IAH or HOU
+HoustonFlights <- Flights %>%
+  filter(dest == c('HOU','IAH'))
+
+# Proportion of flights with a Houston airport destination
+nrow(HoustonFlights) / NoFlights
+# The proportion of flights to Houston is : 0.01383, c. 1.3% of total flights
+
+# Output: 
+print(c(paste0('No. of flights to Houston: ', nrow(HoustonFlights)),
+        paste0('Proportion of total flights: ', round(nrow(HoustonFlights) / NoFlights, 3))))
+
+
+# 3. Were operated by United (`UA`), American (`AA`), or Delta (`DL`)
+
+# Filtering for flights whose carrier is UA, AA or DL and setting up new df with results
+MainCarrier <- Flights %>%
+  filter(carrier == c('UA', 'AA', 'DL'))
+
+# Proportion of flights operated by a big 3 carrier (Delta, American or United)
+nrow(MainCarrier) / NoFlights
+# 0.13930, c. 14% of flights were operated by the three main carriers in the US
+
+# Output: 
+print(c(paste0('No. of flights operated by UA, AA, DL: ', nrow(MainCarrier)),
+        paste0('Proportion of total flights: ', round(nrow(MainCarrier) / NoFlights, 3))))
+
+
+# 4. Departed in summer (July, August, and September)
+
+# Filtering for flights by month, including those on 7, 8, 9
+SummerFlights <- Flights %>%
+  filter(month == c(7, 8, 9))
+
+# Proportion of flights that took place in the summer months
+nrow(SummerFlights) / NoFlights
+# 0.08543, c. 8.5% of flights were in the summer
+# This is actually a really low proportion considering the summer is 25% of the year
+  
+# Output: 
+print(c(paste0('No. of flights in summer: ', nrow(SummerFlights)),
+        paste0('Proportion of total flights: ', round(nrow(SummerFlights) / NoFlights, 3))))
+
+
+# 5. Arrived more than two hours late, but didn't leave late
+
+# Using two filter conditions to figure out the number of flights that added more than 2 hours ETA while airborne since they didn't depart late
+AirborneDelays <- Flights %>%
+  filter(dep_delay <= 0 & arr_delay > 120)
+
+# Calculating the proportion of flights with airborne delays of 2+ hours to total flights
+nrow(AirborneDelays) / NoFlights
+# The number of flights is 29, which is an almost negligible proportion of total flights
+# This number is also quite small compared to flights delayed by 2+ hours (c. 10k)
+# It follows that the majority of flight arrival delays happen because the plane departs late
+
+# Output: 
+print(c(paste0('No. of flights delayed by 2+ hours while airborne: ', nrow(AirborneDelays)),
+        paste0('Proportion of total flights: ', round(nrow(AirborneDelays) / NoFlights, 3))))
+
+
+# 6. Were delayed by at least an hour, but made up over 30 minutes in flight
+
+# Using two filter conditions to show 1 hr+ delayed flights that arrived 30 mins (or less) late
+HourDelays <- Flights %>%
+  filter(dep_delay >= 60 & arr_delay <= 30)
+
+# Calculating the proportion of flights that made up at least 30 mins of flight time back after being delayed for more than 1 hr
+nrow(HourDelays) / NoFlights
+# 0.00070, we see that the feat is quite rare within the dataset
+
+# Output: 
+print(c(paste0('No. of 1hr+ delayed flights that recovered 30+ mins: ', nrow(HourDelays)),
+        paste0('Proportion of total flights: ', round(nrow(HourDelays) / NoFlights, 3))))
+```
+
+
+## Problem 2: Cancelled Flights
+
+```{r}
+#| label: Problem 2
+
+# Months had the highest and lowest % of cancelled flights
+
+# Dataframe for the total number of flights per month
+FlightsMonth <- Flights %>%
+  group_by(month) %>%
+  summarise(no = n())
+
+# Create a new dataframe that filters out flights with a value for their departure time
+# Group by month and count the flights in the group
+# Arrange in descending order to see which months have highest / lowest % of cancelled flights
+
+CancelledFlights <- Flights %>%
+  filter(is.na(dep_time)) %>%
+  group_by(month) %>%
+  summarise(no = n()) %>%
+  mutate(percent = round(no/FlightsMonth[[2]], 3)) %>%
+  arrange(desc(percent))
+
+
+glimpse(CancelledFlights)
+
+# February and December had the highest number of cancelled flights
+# October and November had the lowest number of cancelled flights
+
+```
+
+## Problem 3: Most Travelled Plane
+
+
+```{r}
+#| label: Problem 3
+
+# We are trying to figure out which plane flew the most from NYC airports in 2013
+
+# The following dataframe has the number of flights taken by each plane 
+# The data was grouped by the specific plane and then sorted by number of flights taken
+FlightsPlane <- Flights %>%
+  group_by(tailnum) %>%
+  summarise(count = n()) %>%
+  arrange(desc(count)) %>%
+  drop_na()
+
+glimpse(FlightsPlane)
+# There were some flights without a plane number, they were dropped from the calculation
+
+# The 'planes' dataset in 'nycflights13' will be included in the analysis to add seat count
+# Keeping the plane number and the seat column
+Planes <- planes[c(1, 7)]
+  
+
+FlightsPlane <- FlightsPlane %>%
+  left_join(x = FlightsPlane, y = Planes, by = 'tailnum') %>%
+  arrange(desc(count)) %>%
+  drop_na() %>%
+  filter(seats > 50)
+
+glimpse(FlightsPlane)
+
+print(paste0('The plane that flew the most is ', FlightsPlane[1,1], ' with ', FlightsPlane[1,2], ' flights'))
+
+# We will now more closely examine this plane with most flights and see where it flew in 2013
+N328AA <- Flights %>%
+  filter(tailnum == 'N328AA') %>%
+  group_by(dest) %>%
+  summarise(count = n()) %>%
+  arrange(desc(count))
+
+head(N328AA)
+
+```
+
+
+## Problem 4: Weather Analysis
+
+```         
+-   Distribution of temperature (`temp`) in July 2013 
+-   Relationship between `dewp` and `humid`?
+-   Relationship between `precip` and `visib`?
+```
+
+```{r}
+#| label: Problem 4
+
+# Temperature Distribution
+Temperature <- weather
+
+# The dataset has temperature readings for each NYC airport and for every hour of the day
+# While this is great detail, for the purpose of this analysis, the average for NYC and for each day will be kept, so as to see the daily changes in temperature in July 
+TemperatureJuly <- weather %>%
+  filter(month == 7) %>%
+  group_by(day) %>%
+  summarise(avgTemp = mean(temp), avgWind = mean(wind_speed))
+
+# Plotting the time series data for average temperature
+pTemp <- ggplot(TemperatureJuly, aes(x = day, y = avgTemp)) +
+  geom_line(color = 'dark green') +
+  theme_minimal() +
+  labs(x = 'Day', y = 'Average Temperature', title = 'Average Daily Temperature in July 2013 (recorded by NYC airports)') +
+  theme(plot.title = element_text(hjust = 0.5, face = 'bold'))
+pTemp
+
+# Plotting the time series data for wind speed
+WindJuly <- TemperatureJuly %>%
+  drop_na()
+
+avgWind <- mean(WindJuly[[3]])
+stdWind <- sd(WindJuly[[3]])
+
+pWind <- ggplot(WindJuly, aes(x = day, y = avgWind)) +
+  geom_point(color = 'orange') +
+  geom_hline(yintercept = avgWind, color = 'dark blue') +
+  geom_hline(yintercept = avgWind + stdWind, color = 'darkturquoise') + 
+  geom_hline(yintercept = avgWind - stdWind, color = 'darkturquoise') +
+  theme_minimal() +
+  labs(x = 'Day', y = 'Average Wind Speed', title = 'Average Daily Wind Speed in July 2013 (recorded by NYC airports)') +
+  theme(plot.title = element_text(hjust = 0.5, face = 'bold'))
+pWind
+
+# The chart for the wind speed in July has lines that correspond to the month's average and the month's standard deviation. There are some datapoints that do escape the bands denoted by the standard deviation by a sufficient amount that they might be considered outliers, namely the 25th, the 11th and the 18th
+
+
+# Relationship between Dew Point and Humidity
+
+# The following is a dataframe that has the average values for dew point and humidity
+RelativeHumidity <- weather %>%
+  filter(month == 7) %>%
+  group_by(day) %>%
+  summarise(humidity = mean(humid), dew = mean(dewp), temperature = mean(temp))
+
+corr <- cor(RelativeHumidity[[2]], RelativeHumidity[[3]])
+corr
+# The correlation between relative humidity and dew point is 0.49
+# The correlation is not overwhelming, but it does indicate a positive relationship to some degree
+
+# To see the relationship better, I plot the two values against each other for July and find the line of best fit
+pHum <- ggplot(RelativeHumidity, aes(x = humidity, y = dew)) +
+  geom_point(color = 'coral3') +
+  geom_smooth(method = 'lm', formula = y~x) +
+  labs(x = 'Relative Humidity', y = 'Dew Point', title = 'Dew Point vs. Relative Humidity in July 2013 (recorded by NYC airports)') +
+  theme_minimal() + 
+  theme(plot.title = element_text(hjust = 0.5, face = 'bold'))
+pHum
+
+
+# Relationship between Precipitation and Visibility
+
+# The following is a dataframe that has the average values for precipitation and visibility
+Precipitation <- weather %>%
+  filter(month == 7) %>%
+  group_by(day) %>%
+  summarise(precipitation = mean(precip), visibility = mean(visib))
+
+corr2 <- cor(Precipitation[[2]], Precipitation[[3]])
+corr2
+# The correlation between relative humidity and dew point is -0.56
+# The correlation is not overwhelming, but it does indicate a negative relationship to some degree between precipitation and visibility
+
+# To see the relationship better, I plot the two values against each other for July and find the line of best fit
+pPrep <- ggplot(Precipitation, aes(x = precipitation, y = visibility)) +
+  geom_point(color = 'brown1') +
+  geom_smooth(method = 'lm', formula = y~x) +
+  labs(x = 'Precipitation', y = 'Visibility', title = 'Precipitation vs. Visibility in July 2013 (recorded by NYC airports)') +
+  theme_minimal() + 
+  theme(plot.title = element_text(hjust = 0.5, face = 'bold'))
+pPrep
+
+# There are some clear outliers in the data here, and it seems like most of the data is concentrated on lower precipitation and higher visibility areas, meaning that NYC didn't experience so much precipitation in the month of July
+
+```
+
+## Problem 5: Flights & Planes
+
+```  
+Using the 'flights' and 'planes' data tables
+-   Planes without manufacturer
+-   5 top manufacturers
+-   Manufacturer distribution
+```
+
+```{r}
+#| label: Problem 5
+
+# Missing manufacture dates
+Manufacturers <- planes 
+
+# To find planes with a missing manufacture date, all we have to do is identify which planes have an NA in their 'year' column
+NoDateManufacture <- Manufacturers %>%
+  filter(is.na(year))
+
+print(paste0('The number of planes with a missing manufacture date are: ', nrow(NoDateManufacture)))
+
+# Top 5 manufacturers
+
+# This is a table with manufacturers and the number of planes flown in NYC in 2013 that they manufactured
+ManufactureCount <- Manufacturers %>%
+  group_by(manufacturer) %>%
+  summarise(count = n()) %>%
+  arrange(desc(count))
+
+# The top 5 manufacturers are displayed in the following snip:
+head(ManufactureCount, 5)
+
+
+# Manufacturer distribution
+ManufacturerDist <- Manufacturers %>%
+  select(tailnum, manufacturer, year) %>%
+  mutate(manufacturer = case_when(
+    manufacturer == 'BOEING' ~ 'BOEING',
+    manufacturer == 'AIRBUS INDUSTRIE' ~ 'AIRBUS',
+    manufacturer == 'AIRBUS' ~ 'AIRBUS',
+    manufacturer == 'BOMBARDIER INC' ~ 'BOMBARDIER INC',
+    manufacturer == 'EMBRAER' ~ 'EMBRAER',
+    manufacturer == 'MCDONNELL DOUGLAS' ~ 'MCDONNEL DOUGLAS',
+    manufacturer == 'MCDONNELL DOUGLAS AIRCRAFT CO' ~ 'MCDONNEL DOUGLAS',
+    manufacturer == 'MCDONNELL DOUGLAS CORPORATION' ~ 'MCDONNEL DOUGLAS',
+    .default = 'OTHER'
+    )
+  )
+
+# To find out what the distribution is across 2013, we need to add this manufacturer data to the Flights data set using a join function
+FlightDates <- Flights %>%
+  select(tailnum, month, day)
+
+ManufacturerPlane <- FlightDates %>%
+  left_join(ManufacturerDist, by = 'tailnum') %>%
+  drop_na() %>%
+  group_by(manufacturer, month) %>%
+  summarise(count = n())
+
+pManufacture <- ggplot(ManufacturerPlane, aes(x = month, y = count, fill = manufacturer)) +
+  geom_bar(position = 'fill', stat = 'identity') +
+  labs(x = 'Month', y = 'Number of Flights per Manufacturer', title = 'Manufacturer Monthly Distribution in 2013 (recorded by NYC airports)') +
+  theme_minimal() +
+  scale_fill_discrete(name = 'Manufacturer')
+pManufacture
+
+# There is little movement month-to-month in terms of which manufacturer was used for flights. It would be more interesting to see this information over multiple years
+
+# The next dataframe groups manufacturer by year
+ManufacturerYear <- ManufacturerDist %>%
+  group_by(manufacturer, year) %>%
+  summarise(count = n()) %>%
+  drop_na()
+
+pYear <- ggplot(ManufacturerYear, aes(x = year, y = count, fill = manufacturer)) +
+  geom_bar(position = 'stack', stat = 'identity') +
+  labs(x = 'Year', y = 'Number of Flights per Manufacturer', title = 'Manufacturer Distribution (recorded by NYC airports)') +
+  theme_minimal() +
+  scale_fill_discrete(name = 'Manufacturer')
+pYear
+
+```
+
+## Problem 6: Plane Data
+
+```         
+-   Oldest plane
+-   Number of planes
+```
+
+```{r}
+#| label: Problem 6
+
+# Oldest plane that flew in 2013
+
+# Creating a dataframe that includes the year information and then makes sure the flight dataset contains the plane's information
+PlaneAge <- Manufacturers %>%
+  drop_na(year)
+
+oldestYear <- min(PlaneAge$year)
+oldestPlane <- PlaneAge[[oldestYear, 1]]
+
+print(paste0('The oldest plane is ', oldestPlane, ' manufactured in ', oldestYear))
+
+# We're trying to find the number of planes in the flights dataset that are also present in the planes dataset. The way to compare is using the tailnum variable as an identifier to match them with
+FlightList <- unique(Flights$tailnum)
+PlaneList <- unique(Manufacturers$tailnum)
+
+MatchingPlanes <- Reduce(intersect, list(FlightList, PlaneList))
+
+# Now that we have a list of unique values for plane numbers of both datsets, we have to compare them with each other to see how much overlap there is.
+
+print(paste0('There are ', length(MatchingPlanes), ' planes on both datasets'))
+
+```
+## Problem 7: Flight Delays
+
+```         
+-   Median arrival delay on a month-by-month basis in each airport
+-   For each airline, median monthly arrival delay and origin airport
+```
+
+```{r}
+#| label: Problem 7
+
+# Median arrival delays for each airport on a monthly basis
+
+# The first dataframe keeps only those flights that were delayed on arrival, using a filter function to eliminate rows that had an early or on-time arrival
+Delays <- Flights %>%
+  filter(arr_delay > 0)
+
+# This dataframe groups flights by airport and month and then finds the median of the rows that correspond to each group
+DelaysAirport <- Delays %>%
+  group_by(origin, month) %>%
+  summarise(delay = median(arr_delay))
+
+# A line graph with monthly delays by airport would be a good way to visualise this trend
+pDelay <- ggplot(DelaysAirport, aes(x = month, y = delay)) +
+  geom_line(aes(color = origin)) +
+  labs(x = 'Month', y = 'Median Delay by NYC Airport', title = 'Median Arrival Delay Month-to-Month in 2013') +
+  theme_minimal() + 
+  scale_color_discrete(name = 'Airport') + 
+  theme(plot.title = element_text(hjust = 0.5, face = 'bold'))
+pDelay
+
+# The graph shows seasonality within months, but the trend is there for all three airports. This is inconclusive if we're trying to identify which airport is delayed the most.
+
+# Adding an extra layer of information would be a good idea to see whether that gives a better explanation for delays. A possible new variable is the airline operating the flights
+
+# This new dataframe includes that information for each month:
+DelaysAirline <- Delays %>%
+  group_by(origin, month, carrier) %>%
+  summarise(delay = median(arr_delay))
+
+# Function to plot median delays for each airline
+  delayPlots <- function(data, month, delay, origin, carrier) {
+    p <- ggplot(data, aes(x = month, y = delay)) +
+    geom_line(aes(color = origin)) +
+    labs(y = carrier, x = 'Month') +
+    theme_minimal() + 
+    scale_color_discrete(name = 'Airport') + 
+    theme(plot.title = element_text(hjust = 0.5, face = 'bold'))
+    
+    return(p)
+  }
+
+# 9E Delays
+Delays9E <- DelaysAirline %>% filter(carrier == '9E')
+p9E <- delayPlots(Delays9E, Delays9E$month, Delays9E$delay, Delays9E$origin, Delays9E$carrier)
+
+# AA Delays
+DelaysAA <- DelaysAirline %>% filter(carrier == 'AA')
+pAA <- delayPlots(DelaysAA, DelaysAA$month, DelaysAA$delay, DelaysAA$origin, DelaysAA$carrier)
+
+# AS Delays
+DelaysAS <- DelaysAirline %>% filter(carrier == 'AS')
+pAS <- delayPlots(DelaysAS, DelaysAS$month, DelaysAS$delay, DelaysAS$origin, DelaysAS$carrier)
+  
+# B6 Delays
+DelaysB6 <- DelaysAirline %>% filter(carrier == 'B6')
+pB6 <- delayPlots(DelaysB6, DelaysB6$month, DelaysB6$delay, DelaysB6$origin, DelaysB6$carrier)
+
+# DL Delays
+DelaysDL <- DelaysAirline %>% filter(carrier == 'DL')
+pDL <- delayPlots(DelaysDL, DelaysDL$month, DelaysDL$delay, DelaysDL$origin, DelaysDL$carrier)
+
+# EV Delays
+DelaysEV <- DelaysAirline %>% filter(carrier == 'EV')
+pEV <- delayPlots(DelaysEV, DelaysEV$month, DelaysEV$delay, DelaysEV$origin, DelaysEV$carrier)
+
+# F9 Delays
+DelaysF9 <- DelaysAirline %>% filter(carrier == 'F9')
+pF9 <- delayPlots(DelaysF9, DelaysF9$month, DelaysF9$delay, DelaysF9$origin, DelaysF9$carrier)
+
+# FL Delays
+DelaysFL <- DelaysAirline %>% filter(carrier == 'FL')
+pFL <- delayPlots(DelaysFL, DelaysFL$month, DelaysFL$delay, DelaysFL$origin, DelaysFL$carrier)
+
+# HA Delays
+DelaysHA <- DelaysAirline %>% filter(carrier == 'HA')
+pHA <- delayPlots(DelaysHA, DelaysHA$month, DelaysHA$delay, DelaysHA$origin, DelaysHA$carrier)
+
+# MQ Delays
+DelaysMQ <- DelaysAirline %>% filter(carrier == 'MQ')
+pMQ <- delayPlots(DelaysMQ, DelaysMQ$month, DelaysMQ$delay, DelaysMQ$origin, DelaysMQ$carrier)
+
+# OO Delays
+DelaysOO <- DelaysAirline %>% filter(carrier == 'OO')
+pOO <- delayPlots(DelaysOO, DelaysOO$month, DelaysOO$delay, DelaysOO$origin, DelaysOO$carrier)
+
+# UA Delays
+DelaysUA <- DelaysAirline %>% filter(carrier == 'UA')
+pUA <- delayPlots(DelaysUA, DelaysUA$month, DelaysUA$delay, DelaysUA$origin, DelaysUA$carrier)
+
+# US Delays
+DelaysUS <- DelaysAirline %>% filter(carrier == 'US')
+pUS <- delayPlots(DelaysUS, DelaysUS$month, DelaysUS$delay, DelaysUS$origin, DelaysUS$carrier)
+
+# VX Delays
+DelaysVX <- DelaysAirline %>% filter(carrier == 'VX')
+pVX <- delayPlots(DelaysVX, DelaysVX$month, DelaysVX$delay, DelaysVX$origin, DelaysVX$carrier)
+
+# WN Delays
+DelaysWN <- DelaysAirline %>% filter(carrier == 'WN')
+pWN <- delayPlots(DelaysWN, DelaysWN$month, DelaysWN$delay, DelaysWN$origin, DelaysWN$carrier)
+
+# YV Delays
+DelaysYV <- DelaysAirline %>% filter(carrier == 'YV')
+pYV <- delayPlots(DelaysYV, DelaysYV$month, DelaysYV$delay, DelaysYV$origin, DelaysYV$carrier)
+
+plots <- ggarrange(p9E + rremove('xlab'), 
+          pAA + rremove('xlab'), 
+          pAS + rremove('xlab'), 
+          pB6 + rremove('xlab'), 
+          pDL + rremove('xlab'), 
+          pEV + rremove('xlab'),
+          pF9 + rremove('xlab'), 
+          pFL + rremove('xlab'), 
+          pHA + rremove('xlab'), 
+          pMQ + rremove('xlab'), 
+          pOO + rremove('xlab'),  
+          pUA + rremove('xlab'), 
+          pUS + rremove('xlab'), 
+          pWN + rremove('xlab'), 
+          pYV + rremove('xlab'), 
+          common.legend = TRUE, legend = 'bottom', ncol = 3, nrow = 5) 
+
+plots <- annotate_figure(plots, 
+                top = text_grob('Median Airport Monthly Delays by Airline in 2013'))
+
+plots
+```
+
+
+## Problem 8: New York to SFO
+
+Let's take a closer look at what carriers service the route to San Francisco International (SFO). Join the `flights` and `airlines` tables and count which airlines flew the most to SFO. Produce a new dataframe, `fly_into_sfo` that contains three variables: the `name` of the airline, e.g., `United Air Lines Inc.` not `UA`, the count (number) of times it flew to SFO, and the `percent` of the trips that that particular airline flew to SFO.
+
+```{r}
+#| label: Problem 8
+
+Airlines <- airlines
+
+# Joining Airline and Flights datasets to match carriers to their names, keeping only the destination and name of the carriers from the original datasets
+FlightDestinations <- Flights %>%
+  select(carrier, origin, dest, tailnum) %>%
+  left_join(Airlines, by = 'carrier') %>%
+  group_by(name, dest) %>%
+  summarise(count = n())
+  
+# This dataframe compiles the total flights taken by carriers in 2013 and the total column will be used to calculate the percent carriers flew to SFO 
+FlightCarriers <- FlightDestinations %>%
+  group_by(name) %>%
+  summarise(total = sum(count))
+
+# This dataframe filters only for SFO destinations and we can see that there's only 5 carriers that flew to that destination. The dataframe also keeps the percentage flown to SFO out of the total number of flights taken using a join function to add the column from the previous dataframe 
+fly_into_sfo <- FlightDestinations %>%
+  filter(dest == 'SFO') %>%
+  left_join(FlightCarriers, by = 'name') %>%
+  mutate(percent = round(count / total, 2)) %>%
+  select(name, count, percent)
+  
+head(fly_into_sfo, 5)
+
+
+
+fly_into_sfo %>%
+  mutate(name = fct_reorder(name, count))
+
+SFOPlot <-  ggplot(fly_into_sfo, aes(x = count, y = name)) + 
+  geom_col(fill = 'brown4') + 
+  geom_text(aes(label = percent), hjust = 1, colour = "white", size = 5) +
+  labs(title="Which airline dominates the NYC to SFO route?", 
+        subtitle = "as % of total flights in 2013",
+       x= "Number of flights",
+       y= NULL) +
+  theme_minimal() + 
+  theme(plot.title.position = "plot", 
+        axis.text = element_text(size=12), 
+        plot.title = element_text(size=18)) +
+  NULL
+ 
+SFOPlot 
+```
+
+
+## Problem 9: Cancellations
+
+```{r}
+#| label: Problem 9
+
+cancellations <- flights %>% 
+  filter(dest == 'SFO') %>% 
+  filter(is.na(dep_time))
+
+# To visualise this information, a grid of barplots would be best. These bar plots can be made individually and then added together with one of many tools available for r. I've used ggarrange before and it is helpful to combine axis and put together multiple plots on the same grid.
+
+```
+
+## Problem 10: Hollywood Age Gap
+
+The website https://hollywoodagegap.com is a record of *THE AGE DIFFERENCE IN YEARS BETWEEN MOVIE LOVE INTERESTS*. This is an informational site showing the age gap between movie love interests and the data follows certain rules:
+
+-   The two (or more) actors play actual love interests (not just friends, coworkers, or some other non-romantic type of relationship)
+-   The youngest of the two actors is at least 17 years old
+-   No animated characters
+
+
+```{r}
+
+age_gaps <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2023/2023-02-14/age_gaps.csv')
+
+# Age gaps over time
+AgeDifference <- age_gaps %>%
+  group_by(release_year) %>%
+  summarise(average = round(mean(age_difference), 1),
+            std = round(sd(age_difference), 1))
+
+GapPlots <- ggplot(AgeDifference, aes(x = release_year, y = average)) + 
+  geom_point() + 
+  geom_smooth(method = 'lm', formula = y~x, color = 'brown3') +
+  labs(x = 'Year', y = 'Avg Age Difference', title = 'Age Difference Over Time') +
+  theme_minimal() + 
+  theme(plot.title = element_text(hjust = 0.5))
+
+GapPlots
+
+```
+
+
+
