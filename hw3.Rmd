@@ -14,7 +14,7 @@ output:
     toc: yes
 ---
 
-```{r}
+```{r warning = FALSE}
 #| label: Loading libraries
 #| message: false
 #| warning: false
@@ -55,15 +55,12 @@ sky_westminster <- DBI::dbConnect(
 )
 ```
 
-How many tables does the database have?
-
 ```{r}
+# Tables the database has
 DBI::dbListTables(sky_westminster)
 ```
 
 ## Which MP has received the most amount of money? 
-
-You need to work with the `payments` and `members` tables and for now we just want the total among all years. To insert a new, blank chunk of code where you can write your beautiful code (and comments!), please use the following shortcut: `Ctrl + Alt + I` (Windows) or `cmd + option + I` (mac)
 
 ```{r}
 # Fetching the 'payments' and 'members' tables from the database
@@ -82,13 +79,13 @@ mp_receipts <- payments %>%
 
 print(mp_receipts[0:5, c('name', 'donations')])
 ```
+
 ```{r}
 print(paste0 ('The MP who received the most amount of money was ', mp_receipts$name[1], ' with £', mp_receipts$donations[1]))
 ```
 
-## Any `entity` that accounts for more than 5% of all donations?
 
-Is there any `entity` whose donations account for more than 5% of the total payments given to MPs over the 2020-2022 interval? Who are they and who did they give money to?
+## Any `entity` that accounts for more than 5% of all donations?
 
 ```{r}
 # Total donations received
@@ -134,25 +131,12 @@ party_donations <- payments %>%
 ```
 
 
-
 ## Which party has raised the greatest amount of money in each of the years 2020-2022? 
 
-I would like you to write code that generates the following table. 
+```{r}
 
-```{r echo=FALSE, out.width="80%"}
-knitr::include_graphics(here::here("images", "total_donations_table.png"), error = FALSE)
 ```
 
-
-... and then, based on this data, plot the following graph. 
-
-```{r echo=FALSE, out.width="80%"}
-knitr::include_graphics(here::here("images", "total_donations_graph.png"), error = FALSE)
-```
-
-This uses the default ggplot colour pallete, as I dont want you to worry about using the [official colours for each party](https://en.wikipedia.org/wiki/Wikipedia:Index_of_United_Kingdom_political_parties_meta_attributes). However, I would like you to ensure the parties are sorted according to total donations and not alphabetically. You may even want to remove some of the smaller parties that hardly register on the graph. Would facetting help you?  
-
-Finally, when you are done working with the databse, make sure you close the connection, or disconnect from the database.
 
 ```{r}
 dbDisconnect(sky_westminster)
